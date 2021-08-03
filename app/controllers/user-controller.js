@@ -11,15 +11,15 @@ module.exports.controllerLogin = function (req, res, next) {
     aConnectionSteps.controllerSteps(req, res, next, function (connection, finalCallback) {
         let aUser = new User();
         async.waterfall([
-            //validate email and password (checkCredentials)
+            //validate mobile and password (checkCredentials)
             function (callback) {
-                aUser.checkCredentials(connection, req.body.email, req.body.password, function (err, user) {
+                aUser.checkCredentials(connection, req.body.mobile, req.body.password, function (err, user) {
                     if (err) {
                         callback(err);
                     } else {
                         if (user == null || user == undefined) {
                             var error = new Error();
-                            error.message = "Invalid e-mail or password !!!";
+                            error.message = "Invalid mobile or password !!!";
                             callback(error);
                         } else {
                             callback(null, user);
@@ -30,7 +30,7 @@ module.exports.controllerLogin = function (req, res, next) {
             //create token
             function (user, callback) {
                 var token = jwt.sign({
-                    data: { id: user.id, email: user.email },
+                    data: { id: user.id, mobile: user.mobile },
                     exp: Math.floor(Date.now() / 1000) + (60 * 60)
                 }, Config.secret, {});
 
@@ -54,32 +54,16 @@ module.exports.controllerSignup = function (req, res, next) {
     aConnectionSteps.controllerSteps(req, res, next, function (connection, finalCallback) {
         let aUser = new User();
         aUser.name = req.body.name;
-        aUser.email = req.body.email;
+        aUser.mobile = req.body.mobile;
         aUser.password = req.body.password;
         aUser.createdBy = null;
         aUser.updatedBy = null;
         aUser.createdOn = null;
         aUser.updatedOn = null;
-        aUser.parentAccountId = constants.parentAccountId;
-        aUser.isActive = true;
+        aUser.isAdmin = 0;
+        aUser.token = null;
 
         async.waterfall([
-            //validate email
-            function (callback) {
-                aUser.checkEmail(connection, aUser.email, function (err, found) {
-                    if (err) {
-                        callback(err);
-                    } else {
-                        if (found == true) {
-                            var Err = new Error();
-                            Err.message = "This email is already exist!!!";
-                            callback(Err);
-                        } else {
-                            callback(null);
-                        }
-                    }
-                });
-            },
             //insert user
             function (callback) {
                 aUser.insertUser(connection, aUser, function (err, aUser) {
@@ -89,7 +73,7 @@ module.exports.controllerSignup = function (req, res, next) {
             //create token
             function (user, callback) {
                 var token = jwt.sign({
-                    data: { id: user.id, email: user.email },
+                    data: { id: user.id, mobile: user.mobile },
                     exp: Math.floor(Date.now() / 1000) + (60 * 60)
                 }, Config.secret, {});
 
@@ -112,11 +96,13 @@ module.exports.verifyToken = function (token, finalcallback) {
 
     let aUser = new User();
     let aConnection = null;
+    let aTransaction = null;
 
     async.waterfall([
         function (callback2) {
-            conn.connectToSql(function (err, connection) {
+            conn.connectToSql(function (err, connection, transaction) {
                 aConnection = connection;
+                aTransaction = transaction;
                 callback2(err);
             });
         },
@@ -136,7 +122,7 @@ module.exports.verifyToken = function (token, finalcallback) {
             aUser.getUserAuth(aConnection, userId, function (err, user) {
                 if (!err) {
                     if (user != null && user != undefined) {
-                        if (user && token == user.FCMToken) {
+                        if (user && token == user.token) {
                             callback2(null);
                         }
                         else {
@@ -167,7 +153,7 @@ module.exports.verifyToken = function (token, finalcallback) {
     ],
         function (err, aUser) {
             //closeSqlConnection
-            conn.closeSqlConnection(err, aConnection, function (Err) {
+            conn.closeSqlConnection(err, aConnection, aTransaction, function (Err) {
                 finalcallback(Err, aUser);
             });
         }
@@ -177,68 +163,83 @@ module.exports.verifyToken = function (token, finalcallback) {
 module.exports.controllerGetAllUsers = function (req, res, next) {
     var aConnectionSteps = new ConnectionSteps();
     aConnectionSteps.controllerSteps(req, res, next, function (connection, callback) {
-        let aUser = new User();
-        aUser.getAllUsers(connection, function (err, listOfUsers) {
-            callback(err, listOfUsers);
-        });
+        if (req.user.isAdmin == 1) {
+            let aUser = new User();
+            aUser.getAllUsers(connection, function (err, listOfUsers) {
+                callback(err, listOfUsers);
+            });
+        } else {
+            let Err = new Error();
+            Err.message = "Only admin can view all users!!!";
+            callback(Err);
+        }
     });
 };
 
 module.exports.controllerGetUserById = function (req, res, next) {
     var aConnectionSteps = new ConnectionSteps();
     aConnectionSteps.controllerSteps(req, res, next, function (connection, callback) {
-        let aUser = new User();
-        aUser.id = req.params.userId;
-        aUser.getUserById(connection, aUser.id, function (err, aUser) {
-            callback(err, aUser);
-        });
+        if (req.params.userId == req.user.id || req.user.isAdmin == 1) {
+            let aUser = new User();
+            aUser.id = req.params.userId;
+            aUser.getUserById(connection, aUser.id, function (err, aUser) {
+                callback(err, aUser);
+            });
+        } else {
+            let Err = new Error();
+            Err.message = "Only admin can view users, You can only view your profile!!!";
+            callback(Err);
+        }
     });
 };
 
 module.exports.controllerInsertUser = function (req, res, next) {
     var aConnectionSteps = new ConnectionSteps();
     aConnectionSteps.controllerSteps(req, res, next, function (connection, callback) {
-        let aUser = new User();
-        aUser.name = req.body.name;
-        aUser.email = req.body.email;
-        aUser.password = req.body.password;
-        aUser.createdBy = req.user.id;
-        aUser.updatedBy = null;
-        aUser.createdOn = null;
-        aUser.updatedOn = null;
-        aUser.parentAccountId = req.body.parentAccountId;
-        aUser.isActive = req.body.isActive;
-        aUser.insertUser(connection, aUser, function (err, aUser) {
-            callback(err, aUser);
-        });
+        if (req.user.isAdmin == 1) {
+            let aUser = new User();
+            aUser.name = req.body.name;
+            aUser.mobile = req.body.mobile;
+            aUser.password = req.body.password;
+            aUser.createdBy = req.user.id;
+            aUser.updatedBy = null;
+            aUser.createdOn = null;
+            aUser.updatedOn = null;
+            if (req.body.isAdmin == true) {
+                aUser.isAdmin = 1;
+            } else {
+                aUser.isAdmin = 0;
+            }
+            aUser.insertUser(connection, aUser, function (err, aUser) {
+                callback(err, aUser);
+            });
+        } else {
+            let Err = new Error();
+            Err.message = "Only admin can add users!!!";
+            callback(Err);
+        }
     });
 };
 
 module.exports.controllerUpdateUser = function (req, res, next) {
     var aConnectionSteps = new ConnectionSteps();
     aConnectionSteps.controllerSteps(req, res, next, function (connection, callback) {
-        let aUser = new User();
-        aUser.id = req.body.id;
-        aUser.name = req.body.name;
-        aUser.email = req.body.email;
-        aUser.password = req.body.password;
-        aUser.updatedBy = req.user.id;
-        aUser.updatedOn = null;
-        aUser.parentAccountId = req.body.parentAccountId;
-        aUser.isActive = req.body.isActive;
-        aUser.updateUser(connection, aUser, function (err, aUser) {
-            callback(err, aUser);
-        });
-    });
-};
-
-module.exports.controllerDeleteUser = function (req, res, next) {
-    var aConnectionSteps = new ConnectionSteps();
-    aConnectionSteps.controllerSteps(req, res, next, function (connection, callback) {
-        let aUser = new User();
-        let userId = req.params.userId;
-        aUser.deleteUser(connection, userId, function (err, aUser) {
-            callback(err, aUser);
-        });
+        if (req.user.isAdmin == 1) {
+            let aUser = new User();
+            aUser.id = req.body.id;
+            aUser.name = req.body.name;
+            aUser.mobile = req.body.mobile;
+            aUser.password = req.body.password;
+            aUser.updatedBy = req.user.id;
+            aUser.updatedOn = null;
+            aUser.isAdmin = req.body.isAdmin;
+            aUser.updateUser(connection, aUser, function (err, aUser) {
+                callback(err, aUser);
+            });
+        } else {
+            let Err = new Error();
+            Err.message = "Only admin can update users!!!";
+            callback(Err);
+        }
     });
 };

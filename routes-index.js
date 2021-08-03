@@ -42,6 +42,6 @@ router.use(function (req, res, next) {
 
 //All APIs
 router.use('/v1/user', require('./app/routes/user-route'));
-router.use('/v1/challenge', require('./app/routes/challenge-route'));
+router.use('/v1/transaction', require('./app/routes/transaction-route'));
 
 module.exports = router;

@@ -5,32 +5,30 @@ var CRUD = require('../../helper/crud');
 function User() {
     this.id = null;
     this.name = null;
-    this.email = null;
+    this.mobile = null;
     this.password = null;
-    this.otp = null;
-    this.fcmToken = null;
+    this.ballance = null;
+    this.token = null;
     this.createdBy = null;
     this.updatedBy = null;
     this.createdOn = null;
     this.updatedOn = null;
-    this.parentAccountId = null;
-    this.isActive = null;
+    this.isAdmin = null;
 }
 
 function userMapping(userRow) {
     let aUser = new User();
     aUser.id = userRow.Id;
     aUser.name = userRow.Name;
-    aUser.email = userRow.Email;
+    aUser.mobile = userRow.Mobile;
     aUser.password = userRow.Password;
-    aUser.otp = userRow.OTP;
-    aUser.fcmToken = userRow.FCMToken;
+    aUser.ballance = userRow.Ballance;
+    aUser.token = userRow.Token;
     aUser.createdBy = userRow.CreatedBy;
     aUser.updatedBy = userRow.UpdatedBy;
     aUser.createdOn = userRow.CreatedOn;
     aUser.updatedOn = userRow.UpdatedOn;
-    aUser.parentAccountId = userRow.ParentAccountId;
-    aUser.isActive = userRow.IsActive;
+    aUser.isAdmin = userRow.IsAdmin;
     return aUser;
 };
 
@@ -52,11 +50,11 @@ User.prototype.getUserById = function (gConnection, id, finalCallback) {
     });
 };
 
-User.prototype.checkCredentials = function (gConnection, email, password, finalCallback) {
+User.prototype.checkCredentials = function (gConnection, mobile, password, finalCallback) {
 
     async.waterfall([
         function (callback) {
-            var queryString = "select * from [ShipperDB].[dbo].[User] where email = '" + email + "';";
+            var queryString = "select * from [AccountingDB].[dbo].[User] where Mobile = '" + mobile + "';";
             gConnection.query(queryString, (err, result) => {
                 if (!err) {
                     if (result.recordsets[0].length > 0) {
@@ -68,7 +66,7 @@ User.prototype.checkCredentials = function (gConnection, email, password, finalC
                         }
                     } else {
                         let Err = new Error();
-                        Err.message = "No user with this Email!!!";
+                        Err.message = "No user with this Mobile!!!";
                         callback(Err);
                     }
                 }
@@ -86,13 +84,13 @@ User.prototype.checkCredentials = function (gConnection, email, password, finalC
 User.prototype.updateUserToken = function (gConnection, user, token, finalCallback) {
     async.waterfall([
         function (callback) {
-            var queryString = "update [ShipperDB].[dbo].[User] set FCMToken = '" + token + "' where Id = " + user.id + ";";
+            var queryString = "update [AccountingDB].[dbo].[User] set Token = '" + token + "' where Id = " + user.id + ";";
             gConnection.query(queryString, (err, result) => {
                 if (err) {
                     callback(err);
                 } else {
                     if (result.rowsAffected.length > 0) {
-                        user.fcmToken = token;
+                        user.token = token;
                         callback(null, user);
                     }
                     else {
@@ -113,13 +111,13 @@ User.prototype.getUserAuth = function (gConnection, userId, finalCallback) {
     self.id = userId;
     async.waterfall([
         function (callback) {
-            var queryString = "SELECT FCMToken FROM [ShipperDB].[dbo].[User] where Id = " + self.id + ";";
+            var queryString = "SELECT Token FROM [AccountingDB].[dbo].[User] where Id = " + self.id + ";";
             gConnection.query(queryString, (err, result) => {
                 if (err) {
                     callback(err);
                 } else {
                     if (result.recordsets[0].length > 0) {
-                        self.FCMToken = result.recordsets[0][0].FCMToken;
+                        self.token = result.recordsets[0][0].Token;
                         callback(null);
                     }
                     else {
@@ -163,15 +161,16 @@ User.prototype.getAllUsers = function (gConnection, finalCallback) {
 
 User.prototype.insertUser = function (gConnection, user, finalCallback) {
     async.waterfall([
+        //check redundancy
         function (callback) {
             let aUser = new User();
-            aUser.checkEmail(gConnection, user.email, function (err, found) {
+            aUser.checkMobile(gConnection, user.mobile, function (err, found) {
                 if (err) {
                     callback(err);
                 } else {
                     if (found == true) {
                         var Err = new Error();
-                        Err.message = "This email is already exist!!!";
+                        Err.message = "This mobile is already exist!!!";
                         callback(Err);
                     } else {
                         callback(null);
@@ -181,9 +180,9 @@ User.prototype.insertUser = function (gConnection, user, finalCallback) {
         },
         function (callback) {
                 let aCRUD = new CRUD();
-                let ValuesString = "'"+ user.name + "','" + user.email + "'," + user.password + ","
-                + user.createdBy + "," + user.updatedBy + ",GETDATE()," + user.updatedOn + ","
-                + user.parentAccountId + ",'" + user.isActive +"'";
+                let ValuesString = "'"+ user.name + "','" + user.mobile + "','" + user.password + "',"
+                + constants.initialBalance +","+ user.isAdmin +","+ user.createdBy + "," + user.updatedBy + ",GETDATE()," 
+                + user.updatedOn +","+ user.token
     
                 aCRUD.insertObject(gConnection,constants.userTableName,constants.userColsString,ValuesString,function (err,insertedId) {
                     if(err){
@@ -205,10 +204,10 @@ User.prototype.insertUser = function (gConnection, user, finalCallback) {
         });
 };
 
-User.prototype.checkEmail = function (gConnection, email, finalCallback) {
+User.prototype.checkMobile = function (gConnection, mobile, finalCallback) {
     async.waterfall([
         function (callback) {
-            var queryString = "select * from [ShipperDB].[dbo].[User] where email = '" + email + "';";
+            var queryString = "select * from [AccountingDB].[dbo].[User] where mobile = '" + mobile + "';";
             gConnection.query(queryString, (err, result) => {
                 if (err) {
                     callback(err);
@@ -232,13 +231,13 @@ User.prototype.updateUser = function (gConnection, user, finalCallback) {
     async.waterfall([
         function (callback) {
             let aUser = new User();
-            aUser.checkEmail(gConnection, user.email, function (err, found,userID) {
+            aUser.checkMobile(gConnection, user.mobile, function (err, found,userID) {
                 if (err) {
                     callback(err);
                 } else {
                     if (user.id != userID && found == true) {
                         var Err = new Error();
-                        Err.message = "This email is already exist!!!";
+                        Err.message = "This mobile is already exist!!!";
                         callback(Err);
                     } else {
                         callback(null);
@@ -248,9 +247,9 @@ User.prototype.updateUser = function (gConnection, user, finalCallback) {
         },
         function (callback) {
 
-            var sets = " set Name = '" + user.name + "', Email= '" + user.email + "',Password = " + user.password + ", "
-                + " UpdatedBy = " + user.updatedBy + ",UpdatedOn = GETDATE(), "
-                + " ParentAccountId = " + user.parentAccountId + ",IsActive = '" + user.isActive + "'"
+            var sets = " set Name = '" + user.name + "', Mobile= '" + user.mobile + "',Password = '" + user.password + "', "
+                + "UpdatedBy = " + user.updatedBy + ",UpdatedOn = GETDATE(), "
+                + "IsAdmin = '" + user.isAdmin + "'"
 
             let aCRUD = new CRUD();
             aCRUD.updateObject(gConnection,constants.userTableName,sets,user.id,function(err,user){
@@ -268,7 +267,7 @@ User.prototype.deleteUser = function (gConnection, userID, finalCallback) {
     async.waterfall([
         function (callback) {
             let aCRUD = new CRUD();
-            aCRUD.deleteAllRecordsRelatedToUser(gConnection, constants.challengeTableName, userID, function (err) {
+            aCRUD.deleteAllRecordsRelatedToUser(gConnection, constants.transactionTableName, userID, function (err) {
                 callback(err);
             });
         },

@@ -7,7 +7,7 @@ function CRUD() {
 CRUD.prototype.getObjectById = function (gConnection, tableName, id, finalCallback) {
     async.waterfall([
         function (callback) {
-            var queryString = "select * from [ShipperDB].[dbo].[" + tableName + "] where Id = " + id + ";";
+            var queryString = "select * from [AccountingDB].[dbo].[" + tableName + "] where Id = " + id + ";";
             gConnection.query(queryString, (err, result) => {
                 if (!err) {
                     if (result.recordsets[0].length > 0) {
@@ -31,7 +31,7 @@ CRUD.prototype.getObjectById = function (gConnection, tableName, id, finalCallba
 CRUD.prototype.getAllObjects = function (gConnection, tableName, finalCallback) {
     async.waterfall([
         function (callback) {
-            var queryString = "select * from [ShipperDB].[dbo].[" + tableName + "] order by Id desc ;";
+            var queryString = "select * from [AccountingDB].[dbo].[" + tableName + "] order by Id desc ;";
             gConnection.query(queryString, (err, result) => {
                 if (err)
                     callback(err);
@@ -47,7 +47,7 @@ CRUD.prototype.getAllObjects = function (gConnection, tableName, finalCallback) 
 CRUD.prototype.insertObject = function (gConnection, tableName, cols, values, finalCallback) {
     async.waterfall([
         function (callback) {
-            var queryString = "insert into [ShipperDB].[dbo].[" + tableName + "] "
+            var queryString = "insert into [AccountingDB].[dbo].[" + tableName + "] "
                 + " (" + cols + ") "
                 + " OUTPUT inserted.Id"
                 + " values(" + values + ") ;";
@@ -76,7 +76,7 @@ CRUD.prototype.insertObject = function (gConnection, tableName, cols, values, fi
 CRUD.prototype.updateObject = function (gConnection, tableName, Sets, id, finalCallback) {
     async.waterfall([
         function (callback) {
-            var queryString = "update [ShipperDB].[dbo].["+tableName+"] "
+            var queryString = "update [AccountingDB].[dbo].["+tableName+"] "
                 + Sets 
                 + " where Id = " + id + ";";
 
@@ -100,51 +100,6 @@ CRUD.prototype.updateObject = function (gConnection, tableName, Sets, id, finalC
         }
     ], function (err, returnedObj) {
         finalCallback(err, returnedObj);
-    });
-};
-
-CRUD.prototype.deleteObject = function (gConnection, tableName, id, finalCallback) {
-    async.waterfall([
-        function (callback) {
-            var queryString = "delete from [ShipperDB].[dbo].["+tableName+"] "
-                + " where Id = " + id + ";";
-
-            gConnection.query(queryString, (err, result) => {
-                if (err) {
-                    callback(err);
-                } else {
-                    if (result.rowsAffected.length > 0) {
-                        callback(null);
-                    }
-                    else {
-                        var Err = new Error();
-                        Err.message = "Err in "+tableName+" modification!!!";
-                        callback(Err);
-                    }
-                }
-            });
-        }
-    ], function (err) {
-        finalCallback(err);
-    });
-};
-
-CRUD.prototype.deleteAllRecordsRelatedToUser = function (gConnection, tableName, userId, finalCallback) {
-    async.waterfall([
-        function (callback) {
-            var queryString = "delete from [ShipperDB].[dbo].["+tableName+"] "
-                + " where UserId = " + userId + ";";
-
-            gConnection.query(queryString, (err, result) => {
-                if (err) {
-                    callback(err);
-                } else {
-                    callback(null);
-                }
-            });
-        }
-    ], function (err) {
-        finalCallback(err);
     });
 };
 

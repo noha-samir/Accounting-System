@@ -9,7 +9,7 @@ const options = {
 
 // create schema object
 const loginSchema = Joi.object().keys({
-    email: Joi.string().email().error(new Error("Invalid E-mail format!!!")),
+    mobile: Joi.string().length(11).error(new Error("Invalid Mobile format!!!")),
     password:  Joi.string().min(8).error(new Error("Invalid password format!!!"))
 });
 
@@ -33,7 +33,7 @@ module.exports.validLogIn = function (req, res, next) {
 // create schema object
 const signUpSchema = Joi.object().keys({
     name: Joi.string().error(new Error("Name must be string!!!")),
-    email: Joi.string().email().error(new Error("Invalid E-mail format!!!")),
+    mobile: Joi.string().length(11).error(new Error("Invalid Mobile format!!!")),
     password: Joi.string().min(8).error(new Error("Invalid password format!!!"))
 });
 
@@ -77,10 +77,9 @@ module.exports.validParamsId = function (req, res, next) {
 // create schema object
 const userInsertionSchema = Joi.object().keys({
     name: Joi.string().error(new Error("Name must be string!!!")),
-    email: Joi.string().email().error(new Error("Invalid E-mail format!!!")),
+    mobile: Joi.string().length(11).error(new Error("Invalid Mobile format!!!")),
     password:  Joi.string().min(8).error(new Error("Invalid password format!!!")),
-    parentAccountId : Joi.number().positive().integer().error(new Error("parentAccountId must be positive integer!!!")),
-    isActive :Joi.boolean().error(new Error("Invalid isActive format!!!"))
+    isAdmin :Joi.boolean().error(new Error("Invalid IsAdmin value!!!"))
 });
 
 module.exports.validUserInsertion = function (req, res, next) {
@@ -103,10 +102,9 @@ module.exports.validUserInsertion = function (req, res, next) {
 const userModificationSchema = Joi.object().keys({
     id: Joi.number().positive().integer().error(new Error("ID must be positive integer!!!")),
     name: Joi.string().error(new Error("Name must be string!!!")),
-    email: Joi.string().email().error(new Error("Invalid E-mail format!!!")),
+    mobile: Joi.string().length(11).error(new Error("Invalid Mobile format!!!")),
     password:  Joi.string().min(8).error(new Error("Invalid password format!!!")),
-    parentAccountId : Joi.number().positive().integer().error(new Error("parentAccountId must be positive integer!!!")),
-    isActive :Joi.boolean().error(new Error("Invalid isActive format!!!"))
+    isAdmin :Joi.boolean().error(new Error("Invalid IsAdmin value!!!"))
 });
 
 module.exports.validUserModification = function (req, res, next) {

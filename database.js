@@ -16,29 +16,59 @@ module.exports.connectToSql = function (finalCallback) {
 
     async.waterfall([
         function (callback) {
-            try {
+            try { 
                 pool.connect().then(() => {
                     callback(null, pool);
                 });
+                
+            } catch (error) {
+                callback(error);
+            }
+        },
+        function (aConnection,callback) {
+            try {
+                const transaction = aConnection.transaction();
+                transaction.begin().then(() => {
+                    callback(null, aConnection,transaction);
+                });
+                
             } catch (error) {
                 callback(error);
             }
         }
-    ], function (err, aConnection) {
-        finalCallback(err, aConnection);
+    ], function (err, aConnection,transaction) {
+        finalCallback(err, aConnection,transaction);
     })
 }
 
-module.exports.closeSqlConnection = function (err, connection, finalCallback) {
-    if (!err) {
-        try {
-            connection.close();
-            finalCallback(null);
-        } catch (error) {
-            finalCallback(error);
-        }
-    } else {
-        finalCallback(err);
+module.exports.closeSqlConnection = function (err, aConnection,aTransaction, callback) {
+
+    if (!aConnection) {
+        let error = new Error();
+        error.code = "DATABASE_ERROR";
+        error.developerMessage = "DB Connection error";
+        error.message = "Something went wrong..";
+        callback(error);
+    }
+    else if (err) {
+        aTransaction.rollback(function () {
+            aConnection.close();
+            callback(err);
+        });
+    }
+    else {
+        aTransaction.commit((function (err) {
+            if (err) {
+                aTransaction.rollback(function () {
+                    aConnection.close();
+                    callback(err);
+                });
+            }
+            else {
+                aConnection.close();
+                callback(null);
+            }
+        }));
     }
 }
 
